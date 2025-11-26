@@ -1,15 +1,13 @@
--- =================================================================================================
--- PROYECTO FINAL: BASE DE DATOS PARA GIMNASIOS (GymDB_Project)
--- AUTOR: [Su Nombre/ID]
--- FECHA: [Fecha de Entrega]
--- OBJETIVO: Implementación de DDL, Restricciones, Índices, Triggers, Stored Procedures y Seguridad.
--- =================================================================================================
+-- ================================================================================================================================
+-- PROYECTO FINAL: GymDB_Project
+-- AUTOR: Rene Antonio Vasquez Torres - 00122224. Bryan Gabriel Alfaro Canizalez - 00221324. Kevin Daniel Rosa Pacheco - 00210024.
+-- ================================================================================================================================
 
 USE master;
 GO
 
 ---------------------------------------------------------------------------------------------------
--- FASE 1: PREPARACIÓN Y DIMENSIONAMIENTO (CRITERIO: Dimensionamiento de la Base)
+-- FASE 1: PREPARACIÓN Y DIMENSIONAMIENTO
 ---------------------------------------------------------------------------------------------------
 
 -- 1. DETENER Y ELIMINAR LA BASE DE DATOS PREVIA (si existe)
@@ -53,6 +51,7 @@ GO
 ---------------------------------------------------------------------------------------------------
 
 -- 5.1. dbo.TB_AuditLog (Tabla central para los Triggers)
+
 CREATE TABLE dbo.TB_AuditLog
 (
 	TableName VARCHAR(50) NOT NULL,
@@ -63,6 +62,7 @@ CREATE TABLE dbo.TB_AuditLog
 GO
 
 -- 5.2. GymCore.TB_Gym (Gimnasios/Sedes)
+
 CREATE TABLE GymCore.TB_Gym (
     GymId INT IDENTITY(1,1) PRIMARY KEY,
     GymName VARCHAR(100) NOT NULL UNIQUE,
@@ -73,10 +73,11 @@ CREATE TABLE GymCore.TB_Gym (
 GO
 
 -- 5.3. MemberData.TB_Member (Tabla Maestra de Personas)
+
 CREATE TABLE MemberData.TB_Member (
     MemberId INT IDENTITY(1000,1) PRIMARY KEY,
     GymId INT NOT NULL,
-    MemberType VARCHAR(15) NOT NULL, -- Member, Trainer, Employee
+    MemberType VARCHAR(15) NOT NULL, 
     FirstName VARCHAR(50) NOT NULL,
     LastName VARCHAR(50) NOT NULL,
     BirthDate DATE,
@@ -91,13 +92,13 @@ CREATE TABLE MemberData.TB_Member (
 GO
 
 -- 5.4. MemberData.TB_Membership (Perfiles de Miembros Regulares)
+
 CREATE TABLE MemberData.TB_Membership (
     MembershipId INT IDENTITY(1,1) PRIMARY KEY,
     MemberId INT NOT NULL UNIQUE, -- Relación 1:1
     MembershipType VARCHAR(20) NOT NULL,
     StartDate DATE NOT NULL DEFAULT GETDATE(),
     EndDate DATE,
-    -- Columna Calculada Persistida
     IsActive AS CAST(CASE WHEN EndDate >= GETDATE() THEN 1 ELSE 0 END AS BIT),
     CONSTRAINT CK_Membership_Type CHECK (MembershipType IN ('Silver', 'Gold', 'Diamond')),
     CONSTRAINT FK_Membership_Member FOREIGN KEY (MemberId)
@@ -108,6 +109,7 @@ CREATE TABLE MemberData.TB_Membership (
 GO
 
 -- 5.5. MemberData.TB_TrainerProfile (Perfiles de Entrenadores)
+
 CREATE TABLE MemberData.TB_TrainerProfile (
     TrainerProfileId INT IDENTITY(1,1) PRIMARY KEY,
     MemberId INT NOT NULL UNIQUE, -- Relación 1:1
@@ -123,6 +125,7 @@ CREATE TABLE MemberData.TB_TrainerProfile (
 GO
 
 -- 5.6. MemberData.TB_EmployeeProfile (Perfiles de Empleados Administrativos/Servicio)
+
 CREATE TABLE MemberData.TB_EmployeeProfile (
     EmployeeProfileId INT IDENTITY(1,1) PRIMARY KEY,
     MemberId INT NOT NULL UNIQUE, -- Relación 1:1
@@ -138,6 +141,7 @@ CREATE TABLE MemberData.TB_EmployeeProfile (
 GO
 
 -- 6.1. GymCore.TB_Class (Clases o Áreas de Entrenamiento)
+
 CREATE TABLE GymCore.TB_Class (
     ClassId INT IDENTITY(1,1) PRIMARY KEY,
     GymId INT NOT NULL,
@@ -149,6 +153,7 @@ CREATE TABLE GymCore.TB_Class (
 GO
 
 -- 6.2. GymCore.TB_Equipment (Inventario de Equipos)
+
 CREATE TABLE GymCore.TB_Equipment (
     EquipmentId INT IDENTITY(1,1) PRIMARY KEY,
     ClassId INT NOT NULL,
@@ -162,6 +167,7 @@ CREATE TABLE GymCore.TB_Equipment (
 GO
 
 -- 6.3. OperationsData.TB_Enrollment (Inscripciones de Miembros a Clases)
+
 CREATE TABLE OperationsData.TB_Enrollment (
     EnrollmentId INT IDENTITY(1,1) PRIMARY KEY,
     MemberId INT NOT NULL,
@@ -178,6 +184,7 @@ CREATE TABLE OperationsData.TB_Enrollment (
 GO
 
 -- 6.4. OperationsData.TB_Payment (Historial de Pagos)
+
 CREATE TABLE OperationsData.TB_Payment (
     PaymentId INT IDENTITY(1,1) PRIMARY KEY,
     MemberId INT NOT NULL,
@@ -192,6 +199,7 @@ CREATE TABLE OperationsData.TB_Payment (
 GO
 
 -- 6.5. OperationsData.TB_PaymentArchive (Archivos de Pagos para Data Retention)
+
 CREATE TABLE OperationsData.TB_PaymentArchive (
     OriginalPaymentId INT,
     MemberId INT,
@@ -203,10 +211,11 @@ CREATE TABLE OperationsData.TB_PaymentArchive (
 GO
 
 -- 6.6. OperationsData.TB_Maintenance (Reportes de Mantenimiento de Equipos)
+
 CREATE TABLE OperationsData.TB_Maintenance (
     MaintenanceId INT IDENTITY(1,1) PRIMARY KEY,
     EquipmentId INT NOT NULL,
-    MemberId INT NOT NULL, -- Quién realizó/reportó el mantenimiento
+    MemberId INT NOT NULL,
     MaintenanceType VARCHAR(15) NOT NULL,
     MaintenanceSummary VARCHAR(1000) NOT NULL,
     NextMaintenanceDate DATE,
@@ -226,8 +235,7 @@ GO
 USE GymDB_Project;
 GO
 
--- A. ESTRATEGIA DE INDEXACIÓN (CRITERIO: Rendimiento)
--- ----------------------------------------------------
+-- A. ESTRATEGIA DE INDEXACIÓN
 
 -- Índice A: Ranking/Particionamiento por Sede y Edad
 IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IDX_GymId_BirthDate' AND object_id = OBJECT_ID('MemberData.TB_Member'))
@@ -248,10 +256,11 @@ INCLUDE (GymId, FirstName);
 GO
 
 
--- B. TRIGGERS DE AUDITORÍA (CRITERIO: Especificaciones de Auditoría)
+-- B. TRIGGERS DE AUDITORÍA
 -- -------------------------------------------------------------------
 
 -- Triggers para las tablas de Perfiles (Membership, Trainer, Employee)
+
 IF OBJECT_ID('dbo.TX_LOG_MEMBERSHIP','TR') IS NOT NULL DROP TRIGGER dbo.TX_LOG_MEMBERSHIP;
 GO
 CREATE TRIGGER TX_LOG_MEMBERSHIP ON [MemberData].[TB_Membership] AFTER INSERT, UPDATE, DELETE
@@ -283,6 +292,7 @@ END;
 GO
 
 -- Trigger para la tabla maestra de miembros
+
 IF OBJECT_ID('dbo.TX_LOG_MEMBER','TR') IS NOT NULL DROP TRIGGER dbo.TX_LOG_MEMBER;
 GO
 CREATE TRIGGER TX_LOG_MEMBER ON [MemberData].[TB_Member] AFTER INSERT, UPDATE, DELETE
@@ -294,6 +304,7 @@ END;
 GO
 
 -- Triggers para equipos y clases
+
 IF OBJECT_ID('dbo.TX_LOG_CLASS','TR') IS NOT NULL DROP TRIGGER dbo.TX_LOG_CLASS;
 GO
 CREATE TRIGGER TX_LOG_CLASS ON [GymCore].[TB_Class] AFTER INSERT, UPDATE, DELETE
@@ -375,7 +386,7 @@ BEGIN
 END;
 GO
 
--- SP_ArchiveMemberPayments (Función auxiliar para el borrado seguro)
+-- SP_ArchiveMemberPayments
 IF OBJECT_ID('dbo.SP_ArchiveMemberPayments','P') IS NOT NULL DROP PROCEDURE dbo.SP_ArchiveMemberPayments;
 GO
 CREATE PROCEDURE dbo.SP_ArchiveMemberPayments
@@ -393,7 +404,7 @@ BEGIN
 END;
 GO
 
--- SP_DeleteMember_ArchivePayments (Borrado completo y seguro de miembro)
+-- SP_DeleteMember_ArchivePayments
 IF OBJECT_ID('dbo.SP_DeleteMember_ArchivePayments','P') IS NOT NULL DROP PROCEDURE dbo.SP_DeleteMember_ArchivePayments;
 GO
 CREATE PROCEDURE dbo.SP_DeleteMember_ArchivePayments
@@ -404,19 +415,19 @@ BEGIN
     BEGIN TRY
         BEGIN TRANSACTION;
         
-        -- 1. Archivar pagos 
+     
         EXEC dbo.SP_ArchiveMemberPayments @MemberId = @MemberId, @Reason = 'Member deletion';
         
-        -- 2. Eliminar referencias transaccionales (Maintenance y Enrollment)
+        
         DELETE FROM OperationsData.TB_Maintenance WHERE MemberId = @MemberId;
         DELETE FROM OperationsData.TB_Enrollment WHERE MemberId = @MemberId;
         
-        -- 3. Eliminar perfiles 1:1 (activará triggers de auditoría)
+       
         DELETE FROM MemberData.TB_Membership WHERE MemberId = @MemberId;
         DELETE FROM MemberData.TB_TrainerProfile WHERE MemberId = @MemberId;
         DELETE FROM MemberData.TB_EmployeeProfile WHERE MemberId = @MemberId;
         
-        -- 4. Eliminar el registro maestro (activará trigger de auditoría)
+        
         DELETE FROM MemberData.TB_Member WHERE MemberId = @MemberId;
         
         COMMIT TRANSACTION;
@@ -428,7 +439,7 @@ BEGIN
 END;
 GO
 
--- SP_DeleteGym (Borrado completo y seguro de gimnasio)
+-- SP_DeleteGym 
 IF OBJECT_ID('dbo.SP_DeleteGym','P') IS NOT NULL DROP PROCEDURE dbo.SP_DeleteGym;
 GO
 CREATE PROCEDURE dbo.SP_DeleteGym @GymId INT
@@ -440,10 +451,10 @@ BEGIN
         DECLARE @MemberId INT;
         DECLARE @Members TABLE (MemberId INT);
 
-        -- 1. Identificar miembros del gimnasio a borrar
+        
         INSERT INTO @Members (MemberId) SELECT MemberId FROM MemberData.TB_Member WHERE GymId = @GymId;
 
-        -- 2. Iterar y borrar cada miembro de forma segura (archiva pagos)
+        
         WHILE EXISTS (SELECT 1 FROM @Members)
         BEGIN
             SELECT TOP 1 @MemberId = MemberId FROM @Members;
@@ -451,7 +462,7 @@ BEGIN
             DELETE FROM @Members WHERE MemberId = @MemberId;
         END
 
-        -- 3. Borrar el registro del Gym (DELETE CASCADE elimina clases y equipos)
+       
         DELETE FROM GymCore.TB_Gym WHERE GymId = @GymId;
         
         COMMIT TRANSACTION;
@@ -464,13 +475,13 @@ END;
 GO
 
 ---------------------------------------------------------------------------------------------------
--- FASE 5: SEGURIDAD Y BACKUP (CRITERIO: Roles, Privilegios y Plan de Backup)
+-- FASE 5: SEGURIDAD Y BACKUP 
 ---------------------------------------------------------------------------------------------------
 
 -- A. IMPLEMENTACIÓN DE ROLES, USUARIOS Y PRIVILEGIOS
 ----------------------------------------------------
 
--- 1. CREACIÓN DE LOGINS (Nivel de Instancia: master)
+-- 1. CREACIÓN DE LOGIN
 USE master;
 GO
 
@@ -486,7 +497,7 @@ IF NOT EXISTS (SELECT name FROM sys.server_principals WHERE name = 'ReceptionLog
     CREATE LOGIN ReceptionLogin WITH PASSWORD = 'P@sswOrd123!', CHECK_POLICY = ON;
 GO
 
--- 2. CREACIÓN DE USUARIOS Y ROLES (Nivel de BD: GymDB_Project)
+-- 2. CREACIÓN DE USUARIOS Y ROLES 
 USE GymDB_Project;
 GO
 
@@ -542,40 +553,58 @@ DENY DELETE ON MemberData.TB_Member TO Role_Reception; -- Borrado solo vía SP se
 GO
 
 
--- B. ESTRATEGIA DE BACKUP (CRITERIO: Plan de Backup y Restauración)
---------------------------------------------------------------------
+-- B. ESTRATEGIA DE BACKUP
+---------------------------
 
 USE master;
 GO
 
--- 1. Configurar modelo de recuperación FULL (Permite Log Backups)
+-- 1. Configurar modelo de recuperación FULL 
 ALTER DATABASE GymDB_Project SET RECOVERY FULL;
 GO
 
--- 2. FULL Backup (Respaldo Completo - Punto de partida)
+-- 2. FULL BACKUP inicial 
+
 BACKUP DATABASE GymDB_Project
-TO DISK = 'C:\Backups\GymDB_Full.bak'
-WITH INIT, COMPRESSION, STATS = 10,
-DESCRIPTION = 'Respaldo completo inicial de GymDB_Project';
+TO DISK = 'C:\Backups\GymDB_Project_FULL.bak'
+WITH INIT, COMPRESSION, STATS = 10;
 GO
 
--- 3. LOG Backup (Respaldo de Transacciones - Recuperación a un punto en el tiempo)
+-- 3. BACKUP DIFERENCIAL 
+BACKUP DATABASE GymDB_Project
+TO DISK = 'C:\Backups\GymDB_Project_DIFF.bak'
+WITH DIFFERENTIAL, INIT, COMPRESSION, STATS = 10;
+GO
+
+-- 4. BACKUP DE LOG 
 BACKUP LOG GymDB_Project
-TO DISK = 'C:\Backups\GymDB_Log_01.trn'
-WITH STATS = 10,
-DESCRIPTION = 'Respaldo del Log de Transacciones';
+TO DISK = 'C:\Backups\GymDB_Project_LOG.trn'
+WITH INIT, COMPRESSION, STATS = 10;
 GO
 
--- 4. DIFFERENTIAL Backup (Respaldo Diferencial - Acelera la restauración)
-BACKUP DATABASE GymDB_Project
-TO DISK = 'C:\Backups\GymDB_Diff.bak'
-WITH DIFFERENTIAL, COMPRESSION, STATS = 10,
-DESCRIPTION = 'Respaldo diferencial de GymDB_Project';
+
+--1. Restaurar el FULL Backup
+RESTORE DATABASE GymDB_Project
+FROM DISK = 'C:\Backups\GymDB_Project_FULL.bak'
+WITH NORECOVERY, REPLACE, STATS = 10;
 GO
 
----------------------------------------------------------------------------------------------------
--- FASE 6: CONSULTAS AVANZADAS PARA ANÁLISIS DE NEGOCIO (CRITERIO: Explotación/Rendimiento)
----------------------------------------------------------------------------------------------------
+--2. Restaurar el Diferencial
+RESTORE DATABASE GymDB_Project
+FROM DISK = 'C:\Backups\GymDB_Project_DIFF.bak'
+WITH NORECOVERY, STATS = 10;
+GO
+
+--3. Restaurar LOG hasta un punto específico
+RESTORE LOG GymDB_Project
+FROM DISK = 'C:\Backups\GymDB_Project_LOG.trn'
+WITH STOPAT = '2025-11-27T18:15:00', RECOVERY, STATS = 10;
+GO
+
+
+--------------------------------
+-- FASE 6: CONSULTAS AVANZADAS 
+--------------------------------
 
 USE GymDB_Project;
 GO
@@ -604,7 +633,7 @@ GROUP BY MS.MembershipType, MS.IsActive
 ORDER BY TipoMembresia, EstadoVigencia DESC;
 GO
 
--- 3. Entrenadores Asignados a Clases y su Especialidad (STRING_AGG)
+-- 3. Entrenadores Asignados a Clases y su Especialidad 
 SELECT
     M.FirstName + ' ' + M.LastName AS NombreEntrenador,
     TP.Specialty AS Especialidad,
@@ -618,7 +647,7 @@ HAVING COUNT(C.ClassId) > 0
 ORDER BY ClasesDiferentesAsignadas DESC;
 GO
 
--- 4. Equipamiento Próximo a Mantenimiento (Reporte Operacional)
+-- 4. Equipamiento Próximo a Mantenimiento 
 SELECT
     E.EquipmentType AS TipoEquipo,
     E.[Description] AS Descripcion,
@@ -633,7 +662,7 @@ WHERE DATEDIFF(DAY, E.LastMaintenance, GETDATE()) > 90 
 ORDER BY DiasDesdeMantenimiento DESC;
 GO
 
--- 5. Listado Detallado de Empleados Administrativos (Años de Servicio)
+-- 5. Listado Detallado de Empleados Administrativos 
 SELECT
     M.FirstName + ' ' + M.LastName AS NombreEmpleado,
     EP.ServiceType AS TipoServicio,
@@ -647,15 +676,21 @@ WHERE M.MemberType = 'Employee'
 ORDER BY AñosDeServicio DESC, NombreEmpleado;
 GO
 
--- 6. Uso de FUNCIÓN DE VENTANA (Ingreso Acumulado por Sede - Criterio Rendimiento/Consultas Avanzadas)
+-- 6. Uso de FUNCIÓN DE VENTANA (Ingreso Acumulado por Sede)
+USE GymDB_Project;
+GO
+
 SELECT
-    G.GymName,
-    P.PaymentDate,
-    P.Amount,
-    -- Función de Ventana SUM() OVER (PARTITION BY...)
-    SUM(P.Amount) OVER (PARTITION BY G.GymName ORDER BY P.PaymentDate) AS IngresoAcumulado
+    G.GymName AS Sede,
+    P.PaymentDate AS FechaPago,
+    P.Amount AS MontoPago,
+    -- La función de ventana calcula la suma ACUMULADA.
+    SUM(P.Amount) OVER (
+        PARTITION BY G.GymName   -- Criterio de agrupamiento: Reinicia el cálculo por cada Gym.
+        ORDER BY P.PaymentDate   -- Criterio de ordenamiento: Suma progresivamente a lo largo del tiempo.
+    ) AS IngresoAcumuladoTotal
 FROM OperationsData.TB_Payment P
 INNER JOIN MemberData.TB_Member M ON P.MemberId = M.MemberId
-INNER JOIN GymCore.TB_Gym G ON M.GymId = G.Id
+INNER JOIN GymCore.TB_Gym G ON M.GymId = G.GymId
 ORDER BY G.GymName, P.PaymentDate;
 GO
